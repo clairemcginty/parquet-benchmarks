@@ -1,0 +1,19 @@
+{
+    "name": "TestRecord",
+    "type": "record",
+    "namespace": "testdata",
+    "fields": [
+        {
+            "name": "stringField",
+            "type": "string"
+        },
+        {
+            "name": "doubleField",
+            "type": "double"
+        },
+        {
+            "name": "intField",
+            "type": "int"
+        }
+    ]
+}

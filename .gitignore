@@ -1,0 +1,6 @@
+.java-version
+.bsp/
+.idea/
+testdata
+target
+.DS_STORE
