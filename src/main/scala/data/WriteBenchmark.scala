@@ -3,6 +3,7 @@ package data
 import org.apache.hadoop.conf.Configuration
 import org.apache.parquet.column.Encoding
 import org.apache.parquet.hadoop.ParquetFileReader
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
 
 import java.io.FileWriter
 import java.nio.file.Files
@@ -48,9 +49,9 @@ object WriteBenchmark {
 
       println(s"Finished writing ${conf.file.getAbsolutePath}.")
       val s = if (conf.isParquetDefault) {
-        s"| **${conf.cardinality}** | **${dictCols.mkString("<br/>")}** | **${conf.compression}** | **${conf.pageSizeMb} MB** | **${conf.distribution}** | **${conf.recordOrdering}** | **${Files.size(conf.file.toPath) / 1024.0 / 1024.0} MB**  | **${(end - start) / 1000.0} s** |\n"
+        s"| **${conf.cardinality}** | **${dictCols.mkString("<br/>")}** | **${conf.compressionStr}** | **${conf.pageSizeMb} MB** | **${conf.dictPageSizeMb} MB** | **${conf.distribution}** | **${conf.recordOrdering}** | **${conf.extraProp.map(_.toString).getOrElse("")}** | **${Files.size(conf.file.toPath) / 1024.0 / 1024.0} MB**  | **${(end - start) / 1000.0} s** |\n"
       } else {
-        s"| ${conf.cardinality} | ${dictCols.mkString("<br/>")} | ${conf.compression} | ${conf.pageSizeMb} MB | ${conf.distribution} | ${conf.recordOrdering} | ${Files.size(conf.file.toPath) / 1024.0 / 1024.0} MB  | ${(end - start) / 1000.0} s |\n"
+        s"| ${conf.cardinality} | ${dictCols.mkString("<br/>")} | ${conf.compressionStr} | ${conf.pageSizeMb} MB | ${conf.dictPageSizeMb} MB | ${conf.distribution} | ${conf.recordOrdering} | ${conf.extraProp.map(_.toString).getOrElse("")} | ${Files.size(conf.file.toPath) / 1024.0 / 1024.0} MB  | ${(end - start) / 1000.0} s |\n"
       }
 
       benchResults += ((conf, s))
@@ -58,8 +59,8 @@ object WriteBenchmark {
 
     // Write file header
     val sb = new mutable.StringBuilder
-    sb ++= "| Cardinality | Dict-Encoded Cols | Compression | Page Size | Data Distribution | Sorting | File Size | Write Time |\n"
-    sb ++= "|-------------|-------------------|-------------|-----------|-------------------|---------|-----------|------------|\n"
+    sb ++= "| Cardinality | Dict-Encoded Cols | Compression | Page Size | Dict Page Size | Data Distribution | Sorting | Extra Props | File Size | Write Time |\n"
+    sb ++= "|-------------|-------------------|-------------|-----------|-----------|-------------------|---------|-------------|-----------|------------|\n"
 
     val f = new FileWriter("write_results.md", true)
     f.write(sb.result)

@@ -40,7 +40,9 @@ object ReadBenchmark {
               s" -D${SysProps.ordering}=${conf.recordOrdering}" +
               s" -D${SysProps.distribution}=${conf.distribution}" +
               s" -D${SysProps.compression}=${conf.compression.toString}" +
-              s" -D${SysProps.pageSizeMb}=${conf.pageSizeMb.toString}"
+              s" -D${SysProps.pageSizeMb}=${conf.pageSizeMb.toString}" +
+              s" -D${SysProps.dictPageSizeMb}=${conf.dictPageSizeMb.toString}" +
+              conf.zstdCompressionLevel.map(l => s" -D${SysProps.zstdCompressionLevel}=$l").getOrElse("")
           )
           ):_*)
 
@@ -69,14 +71,14 @@ object ReadBenchmark {
 
     // Write file header
     val sb = new mutable.StringBuilder
-    sb ++= "| Cardinality | Page Size | Compression | Distribution | Sorting | Dict-Encoded Cols | Extra Conf | Read Time |\n"
-    sb ++= "|-------------|-----------|-------------|-----------|----------|-------------------|------------|-----------|\n"
+    sb ++= "| Cardinality | Page Size | Dict Page Size | Compression | Distribution | Sorting | Dict-Encoded Cols | Extra Conf | Read Time |\n"
+    sb ++= "|-------------|-----------|-----------|-------------|-----------|----------|-------------------|------------|-----------|\n"
     val f = new FileWriter(resultFile, true)
     f.write(sb.result)
 
     benchResults.sorted.foreach { br =>
       f.write(
-        s"| ${br.config.cardinality} | ${br.config.pageSizeMb} MB | ${br.config.compression} | ${br.config.distribution} | ${br.config.recordOrdering} | ${br.dictEncodedCols} | None | ${br.jmhResult / 1000.0} s |\n"
+        s"| ${br.config.cardinality} | ${br.config.pageSizeMb} MB | ${br.config.dictPageSizeMb} MB | ${br.config.compressionStr} | ${br.config.distribution} | ${br.config.recordOrdering} | ${br.dictEncodedCols} | None | ${br.jmhResult / 1000.0} s |\n"
       )
     }
     f.close()
@@ -93,6 +95,7 @@ class ReadBenchmark {
     SysProps.getCardinality.get,
     SysProps.getCompression.get,
     SysProps.getPageSizeMb.get,
+    SysProps.getDictPageSizeMb.get,
     SysProps.getOrdering.get,
     SysProps.getDistribution.get
   )
