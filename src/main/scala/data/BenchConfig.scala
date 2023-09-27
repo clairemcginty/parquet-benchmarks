@@ -23,9 +23,10 @@ object BenchConfig {
   implicit val confOrdering: Ordering[BenchConfig] = Ordering.by[BenchConfig, Int](_.cardinality)
     .orElseBy(_.distribution.toString)
     .orElseBy(_.recordOrdering.toString)
-    .orElseBy(_.pageSizeMb)
-    .orElseBy(_.extraProp)
     .orElseBy(_.compression)
+    .orElseBy(_.pageSizeMb)
+    .orElseBy(_.dictPageSizeMb)
+    .orElseBy(_.extraProp)
 
   def benchConfigurations(): List[BenchConfig] = {
     val cardinalities = SysProps.getCardinality.map(List(_)).getOrElse(allCardinalities)
@@ -39,8 +40,9 @@ object BenchConfig {
       pageSizeMb <- pageSizeMbs;
       distribution <- distributions;
       ordering <- orderings;
-      compression <- compressions
-    } yield BenchConfig(cardinality, compression, pageSizeMb, SysProps.getDictPageSizeMb.getOrElse(1), ordering, distribution, SysProps.getMaxDictionaryCompressionRatio.map(MaxCompressionRatio), SysProps.getZstdCompressionLevel)
+      compression <- compressions;
+      dictSizeMb <- Set(Math.min(pageSizeMb, 1), Math.min(pageSizeMb, 10), Math.min(pageSizeMb, 50))
+    } yield BenchConfig(cardinality, compression, pageSizeMb, dictSizeMb, ordering, distribution, SysProps.getMaxDictionaryCompressionRatio.map(MaxCompressionRatio), SysProps.getZstdCompressionLevel)
 
     // @todo not sure these filters work....
     all
@@ -74,7 +76,7 @@ case class BenchConfig(
   lazy val file: File =
     new File(
       directory,
-      s"${compression}${if (compression == CompressionCodecName.ZSTD) { zstdCompressionLevel.map(_.toString).get } else { "" }}/pageSizeMb_${pageSizeMb}_dict_${dictPageSizeMb}/" +
+      s"${compression}${if (compression == CompressionCodecName.ZSTD) { zstdCompressionLevelOrDefault.toString } else { "" }}/pageSizeMb_${pageSizeMb}_dict_${dictPageSizeMb}/" +
         s"sorting_${recordOrdering}_dist_${distribution}_cardinality${cardinality}" +
         s"${extraProp.map(_.toPathString).getOrElse("")}.parquet"
     )
@@ -84,8 +86,10 @@ case class BenchConfig(
   lazy val isParquetDefault: Boolean =
       compression == CompressionCodecName.UNCOMPRESSED && pageSizeMb == 1 && extraProp.isEmpty && dictPageSizeMb == 1
 
+  lazy val zstdCompressionLevelOrDefault = zstdCompressionLevel.getOrElse(3)
+
   lazy val compressionStr: String = if (compression == CompressionCodecName.ZSTD) {
-    s"$compression(Level ${zstdCompressionLevel.getOrElse(3)})"
+    s"$compression(Level ${zstdCompressionLevelOrDefault})"
   } else {
     compression.toString
   }
@@ -117,8 +121,8 @@ case class BenchConfig(
     println(s"Writing to path $path with compression $compression and page size ${pageSizeMb} MB and dict ${dictPageSizeMb} MB.")
     val conf = new Configuration()
     if (compression == CompressionCodecName.ZSTD) {
-      println(s"Setting ZSTD level to ${SysProps.getZstdCompressionLevel.get}")
-      conf.setInt("parquet.compression.codec.zstd.level", SysProps.getZstdCompressionLevel.get)
+      println(s"Setting ZSTD level to ${zstdCompressionLevelOrDefault}")
+      conf.setInt("parquet.compression.codec.zstd.level", zstdCompressionLevelOrDefault)
     }
 
     var writer = AvroParquetWriter.builder[TestRecord](path)
